@@ -2,6 +2,7 @@ import os
 import re
 import textwrap
 from functools import cached_property
+from types import NoneType
 
 import pypinyin
 import torch

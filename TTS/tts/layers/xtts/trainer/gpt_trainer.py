@@ -265,13 +265,21 @@ class GPTTrainer(BaseTTS):
 
         with torch.no_grad():
             generated_wavs = []
+            device = torch.device('cuda' if torch.cuda.is_available() else 'cpu')
             for idx, latent in enumerate(mel_latents):
+                hg_input = cond_16k[idx].unsqueeze(dim=0)
+                hg_input = hg_input.to(device)
+                #print(f"\n\n===================ULTRA DEBBUGING hg_input:( ========= {hg_input.device} \n\n")
+                #print(f"\n\n===================ULTRA DEBBUGING :( ========= {device} \n\n")
                 speaker_emb = self.xtts.hifigan_decoder.speaker_encoder.forward(
-                    cond_16k[idx].unsqueeze(dim=0), l2_norm=True
+                    hg_input, l2_norm=True
                 ).unsqueeze(-1)
 
                 valid_length = mel_attn_masks[idx].sum().item()
                 valid_latents = mel_latents.detach()[idx, :valid_length, :].unsqueeze(dim=0)
+
+                #print(f"\n\n===================ULTRA DEBBUGING valid_latents:( ========= {valid_latents.device} \n\n")
+
                 wav = self.xtts.hifigan_decoder(valid_latents, g=speaker_emb)
                 wav = wav.squeeze()
 
