@@ -5,6 +5,7 @@ import sys
 import torch
 import torch.nn.functional as F
 import torch.utils.data
+import torchaudio
 
 from TTS.tts.models.xtts import load_audio
 
@@ -82,7 +83,8 @@ class XTTSDataset(torch.utils.data.Dataset):
         for sample in self.samples:
             try:
                 tseq, _, wav, _, _, _ = self.load_item(sample)
-            except:
+            except Exception as e:
+                print("Exception while loading : ", str(e))
                 continue
             # Basically, this audio file is nonexistent or too long to be supported by the dataset.
             if (
@@ -109,10 +111,10 @@ class XTTSDataset(torch.utils.data.Dataset):
         audiopath = sample["audio_file"]
         wav = load_audio(audiopath, self.sample_rate)
         if text is None or len(text.strip()) == 0:
-            raise ValueError
+            raise ValueError("Empty text :(")
         if wav is None or wav.shape[-1] < (0.5 * self.sample_rate):
             # Ultra short clips are also useless (and can cause problems within some models).
-            raise ValueError
+            raise ValueError("wav file is ultra short :(")
 
         if self.use_masking_gt_prompt_approach:
             # get a slice from GT to condition the model
@@ -179,6 +181,10 @@ class XTTSDataset(torch.utils.data.Dataset):
             self.failed_samples.add(sample_id)
             return self[1]
 
+        cond_16k = torchaudio.functional.resample(cond, self.sample_rate, 16000) \
+            if self.sample_rate != 16000 \
+            else cond
+
         res = {
             # 'real_text': text,
             "text": tseq,
@@ -187,6 +193,7 @@ class XTTSDataset(torch.utils.data.Dataset):
             "wav_lengths": torch.tensor(wav.shape[-1], dtype=torch.long),
             "filenames": audiopath,
             "conditioning": cond.unsqueeze(1),
+            "cond_16k": cond_16k,
             "cond_lens": torch.tensor(cond_len, dtype=torch.long)
             if cond_len is not torch.nan
             else torch.tensor([cond_len]),

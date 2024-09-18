@@ -18,6 +18,17 @@ from tokenizers import Tokenizer
 from TTS.tts.layers.xtts.zh_num2words import TextNorm as zh_num2words
 
 
+class VoiceMooreTextPreprocessor:
+    def preprocess_batch(self, texts):
+        return [self.preprocess(text) for text in texts]
+
+    def preprocess(self, text: str) -> str:
+        if type(text) == NoneType:
+            text = str(text)
+        text = text.lower()
+        return text
+
+
 def get_spacy_lang(lang):
     if lang == "zh":
         return Chinese()
@@ -592,8 +603,11 @@ DEFAULT_VOCAB_FILE = os.path.join(os.path.dirname(os.path.realpath(__file__)), "
 class VoiceBpeTokenizer:
     def __init__(self, vocab_file=None):
         self.tokenizer = None
+        self.moore_preprocessor = VoiceMooreTextPreprocessor()
+
         if vocab_file is not None:
             self.tokenizer = Tokenizer.from_file(vocab_file)
+        
         self.char_limits = {
             "en": 250,
             "de": 253,
@@ -611,6 +625,7 @@ class VoiceBpeTokenizer:
             "ja": 71,
             "hu": 224,
             "ko": 95,
+            "mos": 250,
         }
 
     @cached_property
@@ -638,6 +653,9 @@ class VoiceBpeTokenizer:
             txt = japanese_cleaners(txt, self.katsu)
         elif lang == "hi":
             # @manmay will implement this
+            txt = basic_cleaners(txt)
+        elif lang == "mos":
+            txt = self.moore_preprocessor.preprocess(txt)
             txt = basic_cleaners(txt)
         else:
             raise NotImplementedError(f"Language '{lang}' is not supported.")
